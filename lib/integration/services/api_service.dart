@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 
 class ApiService {
-  final String baseUrl = 'http://192.168.1.1:8000/api';
+  final String baseUrl = 'http://10.175.237.226:8000/api';
   String? _authToken;
 
   // Get stored token
@@ -182,35 +182,52 @@ class ApiService {
     }
   }
 
+  Future<void> saveStudentAnswer(int questionId, int selectedOptionId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/Quiz/answers/'),
+        headers: await headers,
+        body: jsonEncode({
+          'question': questionId,
+          'selected_option': selectedOptionId,
+        }),
+      );
+
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        print('Error saving answer: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to save answer');
+      }
+    } catch (e) {
+      print('Error saving answer: $e');
+      throw Exception('Failed to save answer: $e');
+    }
+  }
+
   // Submit quiz
-  Future<Map<String, dynamic>> submitQuiz(
-      int quizId, List<StudentAnswer> answers,
+  Future<Map<String, dynamic>> submitQuiz(int quizId,
       {bool isTimeUp = false}) async {
     try {
-      print('Submitting quiz: $quizId'); // Add logging
-      print(
-          'Answers: ${answers.map((a) => a.toJson()).toList()}'); // Add logging
+      print('Submitting quiz: $quizId');
 
       final response = await http.post(
         Uri.parse('$baseUrl/Quiz/quizzes/$quizId/submit/'),
         headers: await headers,
         body: jsonEncode({
-          'answers': answers.map((a) => a.toJson()).toList(),
           'is_time_up': isTimeUp,
         }),
       );
 
-      print('Response status: ${response.statusCode}'); // Add logging
-      print('Response body: ${response.body}'); // Add logging
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
         final error = jsonDecode(response.body);
-        throw Exception(error['detail'] ?? 'Failed to submit quiz');
+        throw Exception(error['error'] ?? 'Failed to submit quiz');
       }
     } catch (e) {
-      print('Submit error: $e'); // Add logging
+      print('Submit error: $e');
       throw Exception('Failed to submit quiz: $e');
     }
   }
@@ -292,20 +309,15 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getQuizDetailedResult(int quizId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/Quiz/results/$quizId/'),
-        headers: await headers,
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        throw Exception('Failed to load quiz result');
-      }
-    } catch (e) {
-      throw Exception('Error fetching result: $e');
+  Future<Map<String, dynamic>> getQuizDetailedResult(int resultId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/Quiz/results/$resultId/detail/'),
+      headers: await headers,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load quiz result');
     }
   }
 }

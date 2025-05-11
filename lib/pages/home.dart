@@ -4,6 +4,7 @@ import '../integration/services/api_service.dart';
 import '../integration/models/models.dart';
 import 'quiz_screen.dart';
 import 'history.dart';
+import 'quiz_result_detail.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -39,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         // Take only the most recent 3 results for the home screen
+        history.sort((a, b) => b.completedAt.compareTo(a.completedAt));
         quizHistory = history.take(3).toList();
       });
     } catch (e) {
@@ -285,45 +287,95 @@ class _HomeScreenState extends State<HomeScreen> {
         : percentage >= 60
             ? Colors.orange
             : Colors.red;
+    print('Quiz End Time: ${result.quizEndTime}');
+    print('Current Time: ${DateTime.now()}');
+
+    final bool quizEnded = DateTime.now().isAfter(result.quizEndTime);
 
     return Card(
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        title: Text(
-          result.quizTitle, // Using quiz title from result
-          style: const TextStyle(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Column(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: result.score / result.maxScore,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-            ),
-            const SizedBox(height: 4),
             Text(
-              'Score: ${result.score.toStringAsFixed(1)}/${result.maxScore.toStringAsFixed(1)} (${percentage.toStringAsFixed(1)}%)',
-              style: TextStyle(color: Colors.grey[600]),
+              result.quizTitle,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Score: ${result.score.toStringAsFixed(1)}/${result.maxScore.toStringAsFixed(1)}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: progressColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: progressColor),
+                  ),
+                  child: Text(
+                    '${percentage.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      color: progressColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Completed: ${_formatDateTime(result.completedAt)}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            if (quizEnded)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.fact_check),
+                  label: const Text('See Correction'),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuizResultDetailScreen(result: result),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            if (!quizEnded)
+              const Text(
+                'Correction available after quiz ends.',
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
           ],
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: Colors.grey[400],
-        ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const HistoryScreen(),
-          ),
         ),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildErrorWidget() {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../settings/page1.dart'; // Import your settings page
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,10 +14,16 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const ListTile(
-            leading: Icon(Icons.person),
-            title: Text('Account'),
-            subtitle: Text('Manage your account info'),
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Account'),
+            subtitle: const Text('Manage your account info'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
           ),
           const Divider(),
           const ListTile(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../integration/models/models.dart';
 import '../integration/services/api_service.dart';
 import 'result_screen.dart';
+import 'history.dart';
 
 class QuizScreen extends StatefulWidget {
   final Quiz quiz;
@@ -76,65 +77,28 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> submitQuiz({bool isTimeUp = false}) async {
     if (_isSubmitting) return;
 
-    if (!isTimeUp) {
-      final shouldSubmit = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Submit Quiz?'),
-          content: const Text(
-            'Are you sure you want to submit?\nThis is your only attempt.',
-            style: TextStyle(color: Colors.red),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Review Answers'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Submit'),
-            ),
-          ],
-        ),
-      );
-
-      if (shouldSubmit != true) return;
-    }
-
     setState(() => _isSubmitting = true);
     _timer.cancel();
 
     try {
-      final answers = selectedOptions.entries
-          .map((entry) => StudentAnswer(
-                questionId: entry.key,
-                selectedOptionId: entry.value,
-              ))
-          .toList();
+      // Save answers to backend first
+      for (var entry in selectedOptions.entries) {
+        await _apiService.saveStudentAnswer(entry.key, entry.value);
+      }
 
-      final response = await _apiService.submitQuiz(
+      await _apiService.submitQuiz(
         widget.quiz.id,
-        answers,
         isTimeUp: isTimeUp,
       );
 
       if (!mounted) return;
 
-      final result = Result.fromJson({
-        'quiz_id': widget.quiz.id,
-        'quiz_title': widget.quiz.title,
-        'score': response['score'],
-        'max_score': response['max_score'],
-        'percentage_score': response['percentage'],
-        'completed_at': DateTime.now().toIso8601String(),
-      });
-
+      // Navigate directly to the history screen
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => ResultScreen(result: result),
+          builder: (_) => const HistoryScreen(),
         ),
-        (route) => route.isFirst, // Only keep home screen
+        (route) => route.isFirst,
       );
     } catch (e) {
       if (!mounted) return;

@@ -1,101 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:card_swiper/card_swiper.dart';
 import '../integration/services/api_service.dart';
 import '../integration/models/models.dart';
-import 'quiz_screen.dart';
-import 'history.dart';
 
-class QuizResultDetailScreen extends StatefulWidget {
-  final int quizId;
-  final String quizTitle;
+class QuizResultDetailScreen extends StatelessWidget {
+  final Result result;
 
   const QuizResultDetailScreen({
     super.key,
-    required this.quizId,
-    required this.quizTitle,
+    required this.result,
   });
-
-  @override
-  State<QuizResultDetailScreen> createState() => _QuizResultDetailScreenState();
-}
-
-class _QuizResultDetailScreenState extends State<QuizResultDetailScreen> {
-  final ApiService _apiService = ApiService();
-  bool _isLoading = true;
-  Map<String, dynamic>? _resultData;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadResult();
-  }
-
-  Future<void> _loadResult() async {
-    try {
-      final result = await _apiService.getQuizDetailedResult(widget.quizId);
-      setState(() {
-        _resultData = result;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.quizTitle),
+        title: Text(result.quizTitle),
         centerTitle: true,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _resultData == null
-              ? const Center(child: Text('Failed to load result'))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildScoreCard(),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Question Details',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ..._buildQuestionResults(),
-                    ],
-                  ),
-                ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildScoreCard(),
+            const SizedBox(height: 24),
+            const Text(
+              'Question Details',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...result.questionResults.map(_buildQuestionCard),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildScoreCard() {
+    final percentage = result.percentageScore;
+    final Color progressColor = percentage >= 80
+        ? Colors.green
+        : percentage >= 60
+            ? Colors.orange
+            : Colors.red;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Text(
-              '${_resultData!['percentage_score'].toStringAsFixed(1)}%',
-              style: const TextStyle(
+              '${percentage.toStringAsFixed(1)}%',
+              style: TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
+                color: progressColor,
               ),
             ),
             Text(
-              'Score: ${_resultData!['score']}/${_resultData!['max_score']}',
+              'Score: ${result.score.toStringAsFixed(1)}/${result.maxScore.toStringAsFixed(1)}',
               style: const TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: result.score / result.maxScore,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
             ),
           ],
         ),
@@ -103,13 +76,7 @@ class _QuizResultDetailScreenState extends State<QuizResultDetailScreen> {
     );
   }
 
-  List<Widget> _buildQuestionResults() {
-    final questionResults = _resultData!['question_results'] as List;
-    return questionResults.map((q) => _buildQuestionCard(q)).toList();
-  }
-
-  Widget _buildQuestionCard(Map<String, dynamic> question) {
-    final isCorrect = question['is_correct'] ?? false;
+  Widget _buildQuestionCard(QuestionResult question) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -118,33 +85,45 @@ class _QuizResultDetailScreenState extends State<QuizResultDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              question['question_text'],
+              question.questionText,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  isCorrect ? Icons.check_circle : Icons.cancel,
-                  color: isCorrect ? Colors.green : Colors.red,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Your answer: ${question['selected_option_text'] ?? 'Not answered'}',
-                    style: TextStyle(
-                      color: isCorrect ? Colors.green : Colors.red,
+            if (question.selectedOptionText != null) ...[
+              Row(
+                children: [
+                  Icon(
+                    question.isCorrect == true
+                        ? Icons.check_circle
+                        : Icons.cancel,
+                    color:
+                        question.isCorrect == true ? Colors.green : Colors.red,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Your answer: ${question.selectedOptionText}',
+                      style: TextStyle(
+                        color: question.isCorrect == true
+                            ? Colors.green
+                            : Colors.red,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ] else ...[
+              Text(
+                'Not answered',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
-              'Points: ${question['points_earned']}/${question['points_possible']}',
+              'Points: ${question.pointsEarned}/${question.pointsPossible}',
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ],
